@@ -36,7 +36,7 @@ public class CsvLoader implements ApplicationRunner {
 		double totalHomeImport = intervals.stream().mapToDouble(Interval::importKwh).sum();
 		double totalHomeExport = intervals.stream().mapToDouble(Interval::exportKwh).sum();
 
-		Battery battery = new Battery(10, 100, 10, 3.5, 5, 0.85, 5000);
+		Battery battery = new Battery(14.4, 100, 10, 2.4, 2.4, 0.85, 4734);
 		SimResult result = simulate(battery, intervals);
 
 		CostCalculator costs = new CostCalculator(Tariffs.defaults());
