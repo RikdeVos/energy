@@ -1,4 +1,4 @@
-package com.rikdevos.energy;
+package com.rikdevos.energy.calculation;
 
 /**
  * Every number the summary log prints, flattened into a single JSON-friendly record

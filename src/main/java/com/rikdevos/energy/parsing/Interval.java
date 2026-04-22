@@ -1,4 +1,4 @@
-package com.rikdevos.energy;
+package com.rikdevos.energy.parsing;
 
 import java.time.LocalDateTime;
 

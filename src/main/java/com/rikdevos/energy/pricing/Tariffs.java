@@ -1,4 +1,4 @@
-package com.rikdevos.energy;
+package com.rikdevos.energy.pricing;
 
 /**
  * Flat per-kWh prices (EUR/kWh) for the four meter quadrants. Value object: no behavior,

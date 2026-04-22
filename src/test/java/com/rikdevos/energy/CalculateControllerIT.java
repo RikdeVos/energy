@@ -15,7 +15,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import tools.jackson.databind.ObjectMapper;
-import com.rikdevos.energy.CalculateController.BatterySpec;
+import com.rikdevos.energy.calculation.CalculationResult;
+import com.rikdevos.energy.pricing.Tariffs;
+import com.rikdevos.energy.web.CalculateController.BatterySpec;
 
 /**
  * End-to-end test via {@link MockMvc}: goes through the full Spring MVC request

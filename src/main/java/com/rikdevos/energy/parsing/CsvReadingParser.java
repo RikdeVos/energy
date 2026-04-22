@@ -1,4 +1,4 @@
-package com.rikdevos.energy;
+package com.rikdevos.energy.parsing;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component;
  * and the timestamp pattern, nothing else. No interval math, no simulation, no logging.
  *
  * <p>Registered as a {@code @Component} so the service receives it via constructor
- * injection — which means a different reading source (Excel, API, mock for tests)
- * just needs a different bean with the same method signature.
+ * injection — a different reading source (Excel, API, mock for tests) just needs a
+ * different bean with the same method signature.
  */
 @Component
 public class CsvReadingParser {
@@ -22,7 +22,6 @@ public class CsvReadingParser {
 	private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
 	public List<Reading> parse(List<String> lines) {
-		// -1 capacity hint: we skip the header, so the output is at most lines.size() - 1.
 		List<Reading> out = new ArrayList<>(Math.max(0, lines.size() - 1));
 		for (int i = 1; i < lines.size(); i++) {
 			String line = lines.get(i).trim();

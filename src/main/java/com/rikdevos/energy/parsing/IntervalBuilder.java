@@ -1,4 +1,4 @@
-package com.rikdevos.energy;
+package com.rikdevos.energy.parsing;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +30,7 @@ public class IntervalBuilder {
 			double exportDelta = curr.totalExport() - prev.totalExport();
 			if (importDelta < 0 || exportDelta < 0) {
 				log.warn("Skipping interval at {} — meter reset detected (importΔ={}, exportΔ={})",
-						curr.time(), Numbers.fmt(importDelta), Numbers.fmt(exportDelta));
+						curr.time(), String.format("%.3f", importDelta), String.format("%.3f", exportDelta));
 				continue;
 			}
 			out.add(new Interval(curr.time(), importDelta, exportDelta));

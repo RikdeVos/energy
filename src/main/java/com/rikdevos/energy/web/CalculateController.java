@@ -1,4 +1,4 @@
-package com.rikdevos.energy;
+package com.rikdevos.energy.web;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -11,6 +11,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.rikdevos.energy.calculation.CalculationResult;
+import com.rikdevos.energy.calculation.CalculationService;
+import com.rikdevos.energy.pricing.Tariffs;
+import com.rikdevos.energy.simulation.Battery;
 
 /**
  * Single endpoint {@code POST /calculate}. Multipart because one of the three inputs is

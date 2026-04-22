@@ -30,40 +30,63 @@ Test reports land under `build/reports/tests/test/index.html`.
 
 ## Architecture
 
-A single-purpose Spring Boot app that, on startup, loads a year of 15-minute smart-meter readings and simulates what a home battery + flat tariffs would have done to the electricity bill. All output goes to the log — no web layer, no persistence.
+Single-purpose Spring Boot app behind one HTTP endpoint. `POST /calculate` takes a CSV of 15-minute smart-meter readings plus a battery spec and a tariff snapshot, and returns what a battery + flat tariffs would have done to the electricity bill. No persistence.
+
+### Package layout (feature-based)
+
+Every package has one reason to change. The orchestrator (`calculation`) is the only place that reaches across packages; leaf packages don't depend on each other.
+
+```
+com.rikdevos.energy
+├── EnergyApplication            @SpringBootApplication — component scan root
+├── web/                         CalculateController (+ BatterySpec request DTO)
+├── parsing/                     CsvReadingParser, IntervalBuilder, Reading, Interval
+├── simulation/                  Battery, BatterySimulator, SimResult
+├── pricing/                     Tariffs, CostCalculator
+├── reporting/                   EnergyReports (log summary), Numbers (pkg-private fmt util)
+└── calculation/                 CalculationService (orchestrator), CalculationResult
+```
 
 ### Classes
 
-- `EnergyApplication` — `@SpringBootApplication` entry point. Just boots the context.
-- `CsvLoader` (`ApplicationRunner`) — orchestrator. On startup: reads the CSV, parses rows, diffs cumulative counters into per-interval deltas, runs the battery simulation, invokes `CostCalculator`, and logs all totals + ROI. Holds the nested `Reading`, `Interval`, `SimResult` records and the `Battery` class (mutable state container). The battery parameters and price are constructed inline in `run(...)` — tweak the `new Battery(...)` literal to experiment.
-- `Tariffs` (record) — immutable value object, the four per-kWh prices (`importT1/T2`, `exportT1/T2`). `Tariffs.defaults()` returns the user's real contract rates. Split by tariff even when the prices are equal, so future time-of-use work only needs a new calculator.
-- `CostCalculator` — single responsibility: multiply kWh flows by tariffs, return EUR. Knows nothing about CSVs or batteries. Depends on `Tariffs` (dependency inversion). `cost(importKwh, exportKwh)` is the one public method.
+- `CsvReadingParser` — raw CSV lines → `List<Reading>`. Knows only the column order and the timestamp pattern.
+- `IntervalBuilder` — cumulative readings → per-interval deltas. Owns the meter-reset rule (negative delta → drop interval with a WARN).
+- `BatterySimulator` — runs a `Battery` against a list of `Interval`s. Mutates the battery in place; returns the net grid flows as `SimResult`. Encapsulates charge/discharge limits, SoC bounds, and RTE.
+- `Battery` — mutable state container. Mutable fields are package-private so only `BatterySimulator` can write them; external readers go through accessor methods.
+- `CostCalculator` — multiplies kWh flows by tariffs. Depends on `Tariffs` (DIP). One public method `cost(importKwh, exportKwh)`.
+- `Tariffs` (record) — immutable per-kWh prices for the four meter quadrants. Split by tariff even when prices are equal, so time-of-use work only needs a new calculator.
+- `EnergyReports` — turns a `CalculationResult` + `Battery` into log lines. Presentation only.
+- `CalculationService` — pure orchestrator. Injects the collaborators, runs the pipeline, builds the result, asks `EnergyReports` to log.
+- `CalculateController` — single endpoint, multipart because one part is a ~2 MB CSV.
 
-### Data pipeline (inside `CsvLoader.run`)
+### Data pipeline (inside `CalculationService.calculate`)
 
-1. **Read** — `source.csv` from classpath as `List<String>`.
-2. **Parse** — skip header, parse timestamp (`yyyy-MM-dd HH:mm`) and the four kWh columns into `List<Reading>`. L1/L2/L3 columns are dropped.
-3. **Diff to intervals** — `toIntervals(readings)` walks pairwise and emits `Interval(time, importKwh, exportKwh)` deltas. **A negative delta is treated as a meter reset** (the CSV has one at `2025-10-13 15:15` where the device was replaced); that one interval is dropped with a `WARN` log. The check is date-free — any future reset behaves the same.
-4. **Simulate** — `simulate(battery, intervals)` mutates the `Battery` and returns `SimResult(netImport, netExport)` — the flows that would still hit the grid with the battery inline.
-5. **Price** — `CostCalculator` produces `costNoBattery` and `costWithBattery` from the aggregated totals.
-6. **Annualize & log** — period span derived from `intervals.getFirst().time()` to `.getLast().time()` via `Duration`, so ROI scales correctly with whatever window the CSV covers. Don't hardcode "1 year" — the code already does the right thing.
+1. **Read** — CSV bytes arrive from the HTTP request as `List<String>`.
+2. **Parse** — `CsvReadingParser.parse(lines)` skips the header and parses timestamp + four kWh columns into `List<Reading>`. L1/L2/L3 columns are dropped.
+3. **Diff to intervals** — `IntervalBuilder.build(readings)` walks pairwise and emits `Interval(time, importKwh, exportKwh)`. **A negative delta is treated as a meter reset**; that single interval is dropped with a WARN. The check is date-free — any future reset behaves the same.
+4. **Simulate** — `BatterySimulator.simulate(battery, intervals)` mutates the `Battery` and returns `SimResult(netImport, netExport)`.
+5. **Price** — a `CostCalculator` is constructed per request (it's parameterised on the request's `Tariffs`, so a singleton wouldn't make sense). Produces `costNoBattery` and `costWithBattery` from the aggregated totals.
+6. **Annualize** — period span derived from `intervals.getFirst().time()` to `.getLast().time()` via `Duration`, so ROI scales correctly with whatever window the CSV covers.
+7. **Report** — `EnergyReports.logSummary(result, battery)` emits the human log lines; the service returns `CalculationResult` to the controller.
 
-### Battery simulation rules (in `simulate`)
+### Battery simulation rules (in `BatterySimulator.simulate`)
 
 - 15-min interval converted to kWh via `INTERVAL_HOURS = 0.25` (kW × 0.25h = kWh). If input resolution changes, change this constant.
 - `exportKwh > 0` and `importKwh > 0` branches are **independent `if`s, not `if/else`** — within a single quarter-hour the meter can show both (the home switched modes mid-interval). Early versions used `else if` and silently dropped the second flow.
 - Charge amount = `min(exportKwh, headroom, maxChargePerInterval)`. Discharge (delivered to home) = `min(importKwh, available × rte, maxDischargePerInterval)`.
-- **RTE (round-trip efficiency) is applied on discharge only.** Delivering `actual` kWh to the home drains `actual / rte` from the cell. `totalDischarged` tracks **delivered** kWh (the useful number — equals the avoided grid import); energy drained from the cell is `totalDischarged / rte`. Default `rte = 0.85`.
+- **RTE (round-trip efficiency) is applied on discharge only.** Delivering `actual` kWh to the home drains `actual / rte` from the cell. `totalDischarged` tracks **delivered** kWh (the useful number — equals the avoided grid import); energy drained from the cell is `totalDischarged / rte`.
 - Energy balance invariant (useful for sanity-checking changes): `totalCharged − totalDischarged/rte ≈ finalCharge − initialCharge`.
 
 ### Conventions worth preserving
 
-- **Prefer records for value objects** (`Tariffs`, `Reading`, `Interval`, `SimResult`). Classes only when mutation is required (`Battery`).
-- **Keep pricing, simulation, and parsing in separate types.** Don't fold `CostCalculator` back into `CsvLoader` even if it's one method — the separation is what makes tariff changes a one-file edit.
-- **Don't add a `PricingStrategy` interface until a second implementation exists.** One-implementation interfaces are noise; the seam is already where it needs to be (swap `Tariffs` or instantiate a different calculator).
+- **Feature-based packages.** When adding a new concern, give it its own package under `com.rikdevos.energy`. Don't collect types by technical layer (no `records/`, `components/`, `dtos/` folders) — that makes a feature change touch every package.
+- **Only `CalculationService` depends across feature packages.** Leaf packages (`parsing`, `simulation`, `pricing`, `reporting`) should never import each other; if they need to, reconsider the seam.
+- **Prefer records for value objects** (`Tariffs`, `Reading`, `Interval`, `SimResult`, `CalculationResult`). Classes only when mutation is required (`Battery`).
+- **Don't add a `PricingStrategy` / `Parser` / `Simulator` interface until a second implementation exists.** One-implementation interfaces are noise; the seam is already where it needs to be (swap the bean, or inject a different `Tariffs`).
+- Package-private is the default visibility. `Numbers` in `reporting/`, mutable fields on `Battery` in `simulation/`, and `BatterySpec.toBattery()` in `web/` are all package-private on purpose.
 - `src/main/resources/source.csv` — ~35k rows, one year of 15-min readings. Columns: `time, Import T1 kWh, Import T2 kWh, Export T1 kWh, Export T2 kWh, L1 max W, L2 max W, L3 max W`. Import/export are **cumulative totals** (always increasing until a meter swap).
 
-When adding new code, place it under `com.rikdevos.energy` so component scanning from `EnergyApplication` picks it up without extra configuration.
+`EnergyApplication` lives in the root `com.rikdevos.energy` package so `@SpringBootApplication`'s component scan picks up every sub-package automatically — don't move it.
 
 ## Dependencies
 
