@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+This project is for learning purposes so output style should be explanatory. Give insights to what you're doing when coding for a sr dev to learn from.
+
 ## Build & Test Commands
 
 Gradle wrapper is committed; always use `./gradlew` (not a system `gradle`).
