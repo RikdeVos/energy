@@ -38,13 +38,18 @@ public class CsvLoader implements ApplicationRunner {
 		Battery battery = new Battery(10, 100, 10, 3.5, 5, 0.85);
 		SimResult result = simulate(battery, intervals);
 
-		log.info("Home totals (no battery): import={} kWh, export={} kWh",
-				fmt(totalHomeImport), fmt(totalHomeExport));
-		log.info("Home totals (with battery): import={} kWh, export={} kWh",
-				fmt(result.netImport()), fmt(result.netExport()));
+		CostCalculator costs = new CostCalculator(Tariffs.defaults());
+		double costNoBattery = costs.cost(totalHomeImport, totalHomeExport);
+		double costWithBattery = costs.cost(result.netImport(), result.netExport());
+
+		log.info("Home totals (no battery): import={} kWh, export={} kWh, cost=€{}",
+				fmt(totalHomeImport), fmt(totalHomeExport), fmt(costNoBattery));
+		log.info("Home totals (with battery): import={} kWh, export={} kWh, cost=€{}",
+				fmt(result.netImport()), fmt(result.netExport()), fmt(costWithBattery));
 		log.info("Battery: finalCharge={} kWh, totalCharged={} kWh, totalDischarged={} kWh",
 				fmt(battery.charge), fmt(battery.totalCharged), fmt(battery.totalDischarged));
 		log.info("Self-consumed via battery (= totalDischarged): {} kWh", fmt(battery.totalDischarged));
+		log.info("Battery savings: €{}", fmt(costNoBattery - costWithBattery));
 	}
 
 	private List<String> readCsv() throws Exception {
