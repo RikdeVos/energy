@@ -44,8 +44,8 @@ class CalculateControllerIT {
 
 	@Test
 	void calculatesResultsForRealCsv() throws Exception {
-		// The Marstek Venus E Gen 3.0 values that used to be hardcoded in CsvLoader.run —
-		// paired with these tariff rates they reproduce today's log output.
+		// Marstek Venus E Gen 3.0 values paired with the user's real tariff rates —
+		// together they reproduce the log output the app produced when these were hardcoded.
 		BatterySpec battery = new BatterySpec(5.12, 100, 10, 2.5, 0.8, 0.82, 1099);
 		Tariffs tariffs = new Tariffs(0.23236, 0.23236, 0.02, 0.02);
 

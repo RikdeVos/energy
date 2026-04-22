@@ -1,10 +1,9 @@
 package com.rikdevos.energy;
 
 /**
- * Everything the old {@code CsvLoader.run(...)} used to log, flattened into a single
- * JSON-friendly record so the HTTP endpoint can return it verbatim. Flat on purpose —
- * Jackson serializes it without any custom config, and callers can pick the fields
- * they care about.
+ * Every number the summary log prints, flattened into a single JSON-friendly record
+ * so the HTTP endpoint can return it verbatim. Flat on purpose — Jackson serializes
+ * it without custom config, and callers pick the fields they care about.
  *
  * <p>Note on {@code roiYears}: when savings are ≤ 0 we use {@code -1.0} as a sentinel
  * instead of {@link Double#POSITIVE_INFINITY}. Jackson's default config emits

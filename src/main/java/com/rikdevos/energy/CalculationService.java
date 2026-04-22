@@ -7,70 +7,72 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.rikdevos.energy.CsvLoader.Interval;
-import com.rikdevos.energy.CsvLoader.Reading;
-import com.rikdevos.energy.CsvLoader.SimResult;
-
 /**
- * Orchestrator lifted out of the old {@code CsvLoader.run(...)} method. Same sequence,
- * same log lines — but the three inputs that used to be hardcoded (CSV bytes, battery
- * specs, tariffs) are now parameters, and the method returns a {@link CalculationResult}
- * instead of being {@code void}.
+ * Orchestrates a single calculation: parse CSV → build intervals → simulate the
+ * battery → price both scenarios → assemble the result. Nothing more. Each
+ * responsibility lives on its own collaborator, injected here via the constructor,
+ * so this class has exactly one reason to change: the shape of the pipeline itself.
  *
- * <p>Keeping the parsing/diffing/simulation helpers where they were (as statics on
- * {@link CsvLoader}) is deliberate — the user wants the bigger "extract each concern into
- * its own type" refactor done separately.
+ * <p>That's the Single Responsibility and Dependency Inversion lines drawn together —
+ * adding a new tariff model, swapping the parser, or changing log output never forces
+ * an edit to this file. And because every collaborator is a regular Spring bean, the
+ * test harness can override any of them in isolation.
  */
 @Service
 public class CalculationService {
 
 	private static final Logger log = LoggerFactory.getLogger(CalculationService.class);
 
+	private final CsvReadingParser parser;
+	private final IntervalBuilder intervalBuilder;
+	private final BatterySimulator simulator;
+	private final EnergyReports reports;
+
+	public CalculationService(CsvReadingParser parser,
+							  IntervalBuilder intervalBuilder,
+							  BatterySimulator simulator,
+							  EnergyReports reports) {
+		this.parser = parser;
+		this.intervalBuilder = intervalBuilder;
+		this.simulator = simulator;
+		this.reports = reports;
+	}
+
 	public CalculationResult calculate(List<String> csvLines, Battery battery, Tariffs tariffs) {
 		log.info("Loaded {} lines from source.csv", csvLines.size());
 
-		List<Reading> readings = CsvLoader.parse(csvLines);
-		List<Interval> intervals = CsvLoader.toIntervals(readings);
+		List<Reading> readings = parser.parse(csvLines);
+		List<Interval> intervals = intervalBuilder.build(readings);
 		log.info("Parsed {} readings, produced {} intervals", readings.size(), intervals.size());
 
 		double totalHomeImport = intervals.stream().mapToDouble(Interval::importKwh).sum();
 		double totalHomeExport = intervals.stream().mapToDouble(Interval::exportKwh).sum();
 
-		SimResult result = CsvLoader.simulate(battery, intervals);
+		SimResult sim = simulator.simulate(battery, intervals);
 
+		// CostCalculator is a fresh per-call collaborator rather than an injected bean
+		// because it's parameterised on the request's Tariffs — a singleton wouldn't make
+		// sense. Still SRP: it only does pricing.
 		CostCalculator costs = new CostCalculator(tariffs);
 		double costNoBattery = costs.cost(totalHomeImport, totalHomeExport);
-		double costWithBattery = costs.cost(result.netImport(), result.netExport());
+		double costWithBattery = costs.cost(sim.netImport(), sim.netExport());
 		double periodSavings = costNoBattery - costWithBattery;
 
-		// Annualize savings from the actual time span in the intervals, so ROI scales
-		// correctly with whatever window the dataset covers.
+		// Annualize from the actual time span in the intervals, so ROI scales with
+		// whatever window the dataset happens to cover.
 		double periodYears = Duration.between(
 				intervals.getFirst().time(), intervals.getLast().time()).toSeconds() / (365.25 * 24 * 3600);
 		double annualSavings = periodSavings / periodYears;
-		// Sentinel instead of +Infinity — see CalculationResult.roiYears javadoc.
+		// Sentinel instead of +Infinity — Jackson emits Infinity which isn't valid JSON.
 		double roiYears = annualSavings > 0 ? battery.price / annualSavings : -1.0;
 
-		log.info("Home totals (no battery): import={} kWh, export={} kWh, cost=€{}",
-				CsvLoader.fmt(totalHomeImport), CsvLoader.fmt(totalHomeExport), CsvLoader.fmt(costNoBattery));
-		log.info("Home totals (with battery): import={} kWh, export={} kWh, cost=€{}",
-				CsvLoader.fmt(result.netImport()), CsvLoader.fmt(result.netExport()), CsvLoader.fmt(costWithBattery));
-		log.info("Battery: finalCharge={} kWh, totalCharged={} kWh, totalDischarged={} kWh",
-				CsvLoader.fmt(battery.charge), CsvLoader.fmt(battery.totalCharged), CsvLoader.fmt(battery.totalDischarged));
-		log.info("Battery cycles: {} equivalent full cycles (usable window {} kWh)",
-				CsvLoader.fmt(battery.equivalentFullCycles()), CsvLoader.fmt(battery.usableCapacity()));
-		log.info("Self-consumed via battery (= totalDischarged): {} kWh", CsvLoader.fmt(battery.totalDischarged));
-		log.info("Savings: €{} over {} years → €{}/year. Battery price €{} → ROI {} years",
-				CsvLoader.fmt(periodSavings), CsvLoader.fmt(periodYears), CsvLoader.fmt(annualSavings),
-				CsvLoader.fmt(battery.price), CsvLoader.fmt(roiYears));
-
-		return new CalculationResult(
+		CalculationResult result = new CalculationResult(
 				intervals.size(),
 				totalHomeImport,
 				totalHomeExport,
 				costNoBattery,
-				result.netImport(),
-				result.netExport(),
+				sim.netImport(),
+				sim.netExport(),
 				costWithBattery,
 				battery.charge,
 				battery.totalCharged,
@@ -82,5 +84,8 @@ public class CalculationService {
 				annualSavings,
 				battery.price,
 				roiYears);
+
+		reports.logSummary(result, battery);
+		return result;
 	}
 }

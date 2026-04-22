@@ -3,8 +3,8 @@ package com.rikdevos.energy;
 // Mutable state container for the simulated home battery. Kept as a class (not a record)
 // because the simulation walks intervals in order and mutates `charge`, `totalCharged`,
 // and `totalDischarged` in place. Configuration fields are final; only the running
-// counters change. Pulled out of CsvLoader so the simulator/orchestrator doesn't own
-// the battery's shape — single responsibility.
+// counters change. Lives on its own so the simulator/orchestrator doesn't own the
+// battery's shape — single responsibility.
 class Battery {
 	double charge;                  // kWh — current stored energy
 	final double maxCapacity;       // kWh — nameplate capacity
