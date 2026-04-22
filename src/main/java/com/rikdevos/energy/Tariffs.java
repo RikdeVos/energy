@@ -13,8 +13,8 @@ public record Tariffs(double importT1, double importT2, double exportT1, double 
 	 * Source: user's contract.
 	 */
 	public static Tariffs defaults() {
-		double importPrice = 0.12151 + 0.11085;
-		double exportPrice = 0.10;
+		double importPrice = 0.23236;
+		double exportPrice = 0.13010;
 		return new Tariffs(importPrice, importPrice, exportPrice, exportPrice);
 	}
 }
