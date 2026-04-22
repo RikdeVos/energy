@@ -9,13 +9,18 @@ This project is for learning purposes so output style should be explanatory. Giv
 Gradle wrapper is committed; always use `./gradlew` (not a system `gradle`).
 
 - Build: `./gradlew build`
-- Run the app: `./gradlew bootRun`
+- Run the app: `./gradlew bootRun` (starts embedded Tomcat on :8080)
 - Run all tests: `./gradlew test`
 - Run a single test class: `./gradlew test --tests com.rikdevos.energy.EnergyApplicationTests`
 - Run a single test method: `./gradlew test --tests 'com.rikdevos.energy.EnergyApplicationTests.contextLoads'`
+- Run the e2e integration test: `./gradlew test --tests com.rikdevos.energy.CalculateControllerIT`
 - Build an OCI image: `./gradlew bootBuildImage`
 
 Test reports land under `build/reports/tests/test/index.html`.
+
+### Hitting the endpoint manually
+
+`requests.http` at the project root is an IntelliJ HTTP Client file with a ready-made multipart POST to `/calculate`. Run `./gradlew bootRun` in one terminal, then click the green ▶ in IntelliJ on the request. The CSV is uploaded from `./src/main/resources/source.csv` via the `<` file-reference syntax — paths are resolved relative to the `.http` file's directory.
 
 ## Toolchain
 
