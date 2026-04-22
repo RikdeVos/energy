@@ -45,9 +45,9 @@ class CalculateControllerIT {
 	@Test
 	void calculatesResultsForRealCsv() throws Exception {
 		// The Marstek Venus E Gen 3.0 values that used to be hardcoded in CsvLoader.run —
-		// paired with Tariffs.defaults() they reproduce today's log output.
+		// paired with these tariff rates they reproduce today's log output.
 		BatterySpec battery = new BatterySpec(5.12, 100, 10, 2.5, 0.8, 0.82, 1099);
-		Tariffs tariffs = Tariffs.defaults();
+		Tariffs tariffs = new Tariffs(0.23236, 0.23236, 0.02, 0.02);
 
 		// try-with-resources because the JVM holds the stream open otherwise, and
 		// ClassPathResource gives us a clearer error than a raw null stream if the file

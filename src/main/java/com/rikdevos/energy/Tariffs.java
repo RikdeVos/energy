@@ -7,15 +7,4 @@ package com.rikdevos.energy;
  * without the calculator knowing the difference.
  */
 public record Tariffs(double importT1, double importT2, double exportT1, double exportT2) {
-
-	/**
-	 * Project defaults: energy price + taxes on import (T1 and T2 equal), flat 0.10 on export.
-	 * Source: user's contract.
-	 */
-	public static Tariffs defaults() {
-		double importPrice = 0.23236;
-//		double exportPrice = 0.13010;
-		double exportPrice = 0.02;
-		return new Tariffs(importPrice, importPrice, exportPrice, exportPrice);
-	}
 }
