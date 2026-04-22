@@ -1,9 +1,5 @@
 package com.rikdevos.energy;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -11,75 +7,25 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Component;
 
-@Component
-public class CsvLoader implements ApplicationRunner {
+/**
+ * Static helpers for turning raw CSV lines into per-interval deltas and simulating the
+ * battery against them. Used to be the application's {@code ApplicationRunner} — the
+ * orchestration has moved to {@link CalculationService}, and the HTTP layer supplies
+ * the CSV bytes now instead of loading a classpath resource.
+ *
+ * <p>Everything in here is stateless utility; the mutable state lives on {@link Battery}.
+ * A later refactor will split parsing / interval-diffing / simulation into their own
+ * types — this class is the "intact" seam the user explicitly asked us to preserve for now.
+ */
+public final class CsvLoader {
 
 	private static final Logger log = LoggerFactory.getLogger(CsvLoader.class);
 	private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 	// 15-minute intervals, expressed as a fraction of an hour, so kW * INTERVAL_HOURS = kWh.
 	private static final double INTERVAL_HOURS = 0.25;
 
-	@Override
-	public void run(ApplicationArguments args) throws Exception {
-		List<String> lines = readCsv();
-		log.info("Loaded {} lines from source.csv", lines.size());
-
-		List<Reading> readings = parse(lines);
-		List<Interval> intervals = toIntervals(readings);
-		log.info("Parsed {} readings, produced {} intervals", readings.size(), intervals.size());
-
-		double totalHomeImport = intervals.stream().mapToDouble(Interval::importKwh).sum();
-		double totalHomeExport = intervals.stream().mapToDouble(Interval::exportKwh).sum();
-
-//		Zendure SolarFlow 2400 AC+ 14.4kWh
-//		Battery battery = new Battery(14.4, 100, 10, 2.4, 2.4, 0.85, 4734);
-
-// 		MARSTEK VENUS E GEN 3.0
-		Battery battery = new Battery(5.12, 100, 10, 2.5, 0.8, 0.82, 1099);
-
-
-// 		MARSTEK VENUS E GEN 3.0
-//		Battery battery = new Battery(5.12, 100, 10, 2.5, 0.8, 0.85, 1099);
-		SimResult result = simulate(battery, intervals);
-
-		CostCalculator costs = new CostCalculator(Tariffs.defaults());
-		double costNoBattery = costs.cost(totalHomeImport, totalHomeExport);
-		double costWithBattery = costs.cost(result.netImport(), result.netExport());
-		double periodSavings = costNoBattery - costWithBattery;
-
-		// Annualize savings from the actual time span in the CSV, so ROI scales correctly
-		// with whatever window the dataset covers — not hardcoded to "a year's worth of rows".
-		double periodYears = Duration.between(
-				intervals.getFirst().time(), intervals.getLast().time()).toSeconds() / (365.25 * 24 * 3600);
-		double annualSavings = periodSavings / periodYears;
-		double roiYears = annualSavings > 0 ? battery.price / annualSavings : Double.POSITIVE_INFINITY;
-
-		log.info("Home totals (no battery): import={} kWh, export={} kWh, cost=€{}",
-				fmt(totalHomeImport), fmt(totalHomeExport), fmt(costNoBattery));
-		log.info("Home totals (with battery): import={} kWh, export={} kWh, cost=€{}",
-				fmt(result.netImport()), fmt(result.netExport()), fmt(costWithBattery));
-		log.info("Battery: finalCharge={} kWh, totalCharged={} kWh, totalDischarged={} kWh",
-				fmt(battery.charge), fmt(battery.totalCharged), fmt(battery.totalDischarged));
-		log.info("Battery cycles: {} equivalent full cycles (usable window {} kWh)",
-				fmt(battery.equivalentFullCycles()), fmt(battery.usableCapacity()));
-		log.info("Self-consumed via battery (= totalDischarged): {} kWh", fmt(battery.totalDischarged));
-		log.info("Savings: €{} over {} years → €{}/year. Battery price €{} → ROI {} years",
-				fmt(periodSavings), fmt(periodYears), fmt(annualSavings),
-				fmt(battery.price), fmt(roiYears));
-	}
-
-	private List<String> readCsv() throws Exception {
-		ClassPathResource resource = new ClassPathResource("source.csv");
-		try (BufferedReader reader = new BufferedReader(
-				new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
-			return reader.lines().toList();
-		}
-	}
+	private CsvLoader() {}
 
 	// Skip the header row; split CSV, parse timestamp + the four kWh columns. L1/L2/L3 are dropped.
 	static List<Reading> parse(List<String> lines) {
@@ -156,11 +102,11 @@ public class CsvLoader implements ApplicationRunner {
 		return new SimResult(netImport, netExport);
 	}
 
-	record SimResult(double netImport, double netExport) {}
-
-	private static String fmt(double v) {
+	static String fmt(double v) {
 		return String.format("%.3f", v);
 	}
+
+	record SimResult(double netImport, double netExport) {}
 
 	record Reading(LocalDateTime time, double importT1, double importT2,
 				   double exportT1, double exportT2) {

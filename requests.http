@@ -1,0 +1,37 @@
+### POST /calculate — upload CSV + battery spec + tariffs
+# Run the app first: ./gradlew bootRun
+# Multipart body: three parts with different Content-Types.
+# The CSV filename is relative to this .http file's directory, so IntelliJ
+# resolves src/main/resources/source.csv from the project root.
+POST http://localhost:8080/calculate
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="csv"; filename="source.csv"
+Content-Type: text/csv
+
+< ./src/main/resources/source.csv
+--WebAppBoundary
+Content-Disposition: form-data; name="battery"
+Content-Type: application/json
+
+{
+  "maxCapacity": 5.12,
+  "maxPercent": 100,
+  "minPercent": 10,
+  "maxChargePower": 2.5,
+  "maxDischargePower": 0.8,
+  "rte": 0.82,
+  "price": 1099
+}
+--WebAppBoundary
+Content-Disposition: form-data; name="tariffs"
+Content-Type: application/json
+
+{
+  "importT1": 0.23236,
+  "importT2": 0.23236,
+  "exportT1": 0.02,
+  "exportT2": 0.02
+}
+--WebAppBoundary--
