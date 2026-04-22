@@ -35,7 +35,7 @@ public class CsvLoader implements ApplicationRunner {
 		double totalHomeImport = intervals.stream().mapToDouble(Interval::importKwh).sum();
 		double totalHomeExport = intervals.stream().mapToDouble(Interval::exportKwh).sum();
 
-		Battery battery = new Battery(10, 100, 10, 3.5, 5);
+		Battery battery = new Battery(10, 100, 10, 3.5, 5, 0.85);
 		SimResult result = simulate(battery, intervals);
 
 		log.info("Home totals (no battery): import={} kWh, export={} kWh",
@@ -116,9 +116,13 @@ public class CsvLoader implements ApplicationRunner {
 				netExport += it.exportKwh() - actual;
 			}
 			if (it.importKwh() > 0) {
+				// RTE applies on discharge: delivering `actual` kWh to the home drains
+				// `actual / rte` from the cell. So the stored-energy cap limits the
+				// *deliverable* side to `available * rte`.
 				double available = Math.max(0, b.charge - lower);
-				double actual = Math.min(Math.min(it.importKwh(), available), maxDischargeStep);
-				b.charge -= actual;
+				double deliverableFromStore = available * b.rte;
+				double actual = Math.min(Math.min(it.importKwh(), deliverableFromStore), maxDischargeStep);
+				b.charge -= actual / b.rte;
 				b.totalDischarged += actual;
 				netImport += it.importKwh() - actual;
 			}
@@ -147,16 +151,18 @@ public class CsvLoader implements ApplicationRunner {
 		final double minPercent;        // 0..100 — lower SoC bound (reserve)
 		final double maxChargePower;    // kW
 		final double maxDischargePower; // kW
+		final double rte;               // round-trip efficiency, 0..1 (applied on discharge)
 		double totalCharged;            // kWh — cumulative energy put into battery
-		double totalDischarged;         // kWh — cumulative energy taken out
+		double totalDischarged;         // kWh — cumulative energy delivered out of battery (post-loss)
 
 		Battery(double maxCapacity, double maxPercent, double minPercent,
-				double maxChargePower, double maxDischargePower) {
+				double maxChargePower, double maxDischargePower, double rte) {
 			this.maxCapacity = maxCapacity;
 			this.maxPercent = maxPercent;
 			this.minPercent = minPercent;
 			this.maxChargePower = maxChargePower;
 			this.maxDischargePower = maxDischargePower;
+			this.rte = rte;
 			this.charge = 0;
 		}
 
