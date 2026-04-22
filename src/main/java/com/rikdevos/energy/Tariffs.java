@@ -14,8 +14,8 @@ public record Tariffs(double importT1, double importT2, double exportT1, double 
 	 */
 	public static Tariffs defaults() {
 		double importPrice = 0.23236;
-		double exportPrice = 0.13010;
-//		double exportPrice = 0.02;
+//		double exportPrice = 0.13010;
+		double exportPrice = 0.02;
 		return new Tariffs(importPrice, importPrice, exportPrice, exportPrice);
 	}
 }

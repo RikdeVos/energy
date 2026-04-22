@@ -36,7 +36,15 @@ public class CsvLoader implements ApplicationRunner {
 		double totalHomeImport = intervals.stream().mapToDouble(Interval::importKwh).sum();
 		double totalHomeExport = intervals.stream().mapToDouble(Interval::exportKwh).sum();
 
-		Battery battery = new Battery(14.4, 100, 10, 2.4, 2.4, 0.85, 4734);
+//		Zendure SolarFlow 2400 AC+ 14.4kWh
+//		Battery battery = new Battery(14.4, 100, 10, 2.4, 2.4, 0.85, 4734);
+
+// 		MARSTEK VENUS E GEN 3.0
+		Battery battery = new Battery(5.12, 100, 10, 2.5, 0.8, 0.82, 1099);
+
+
+// 		MARSTEK VENUS E GEN 3.0
+//		Battery battery = new Battery(5.12, 100, 10, 2.5, 0.8, 0.85, 1099);
 		SimResult result = simulate(battery, intervals);
 
 		CostCalculator costs = new CostCalculator(Tariffs.defaults());
@@ -57,6 +65,8 @@ public class CsvLoader implements ApplicationRunner {
 				fmt(result.netImport()), fmt(result.netExport()), fmt(costWithBattery));
 		log.info("Battery: finalCharge={} kWh, totalCharged={} kWh, totalDischarged={} kWh",
 				fmt(battery.charge), fmt(battery.totalCharged), fmt(battery.totalDischarged));
+		log.info("Battery cycles: {} equivalent full cycles (usable window {} kWh)",
+				fmt(battery.equivalentFullCycles()), fmt(battery.usableCapacity()));
 		log.info("Self-consumed via battery (= totalDischarged): {} kWh", fmt(battery.totalDischarged));
 		log.info("Savings: €{} over {} years → €{}/year. Battery price €{} → ROI {} years",
 				fmt(periodSavings), fmt(periodYears), fmt(annualSavings),

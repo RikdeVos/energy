@@ -31,4 +31,14 @@ class Battery {
 
 	double upperLimit() { return maxCapacity * maxPercent / 100.0; }
 	double lowerLimit() { return maxCapacity * minPercent / 100.0; }
+	double usableCapacity() { return upperLimit() - lowerLimit(); }
+
+	// Equivalent full cycles: cumulative energy charged divided by the usable window.
+	// Industry-standard wear metric — a LFP pack rated for ~6000 cycles can be compared
+	// directly against this number. Using `totalCharged` (not discharged) because the
+	// charge side is what ages the cells; RTE losses don't add wear.
+	double equivalentFullCycles() {
+		double usable = usableCapacity();
+		return usable > 0 ? totalCharged / usable : 0;
+	}
 }
