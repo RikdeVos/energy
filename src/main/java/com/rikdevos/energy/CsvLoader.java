@@ -3,6 +3,7 @@ package com.rikdevos.energy;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -35,12 +36,20 @@ public class CsvLoader implements ApplicationRunner {
 		double totalHomeImport = intervals.stream().mapToDouble(Interval::importKwh).sum();
 		double totalHomeExport = intervals.stream().mapToDouble(Interval::exportKwh).sum();
 
-		Battery battery = new Battery(10, 100, 10, 3.5, 5, 0.85);
+		Battery battery = new Battery(10, 100, 10, 3.5, 5, 0.85, 5000);
 		SimResult result = simulate(battery, intervals);
 
 		CostCalculator costs = new CostCalculator(Tariffs.defaults());
 		double costNoBattery = costs.cost(totalHomeImport, totalHomeExport);
 		double costWithBattery = costs.cost(result.netImport(), result.netExport());
+		double periodSavings = costNoBattery - costWithBattery;
+
+		// Annualize savings from the actual time span in the CSV, so ROI scales correctly
+		// with whatever window the dataset covers — not hardcoded to "a year's worth of rows".
+		double periodYears = Duration.between(
+				intervals.getFirst().time(), intervals.getLast().time()).toSeconds() / (365.25 * 24 * 3600);
+		double annualSavings = periodSavings / periodYears;
+		double roiYears = annualSavings > 0 ? battery.price / annualSavings : Double.POSITIVE_INFINITY;
 
 		log.info("Home totals (no battery): import={} kWh, export={} kWh, cost=€{}",
 				fmt(totalHomeImport), fmt(totalHomeExport), fmt(costNoBattery));
@@ -49,7 +58,9 @@ public class CsvLoader implements ApplicationRunner {
 		log.info("Battery: finalCharge={} kWh, totalCharged={} kWh, totalDischarged={} kWh",
 				fmt(battery.charge), fmt(battery.totalCharged), fmt(battery.totalDischarged));
 		log.info("Self-consumed via battery (= totalDischarged): {} kWh", fmt(battery.totalDischarged));
-		log.info("Battery savings: €{}", fmt(costNoBattery - costWithBattery));
+		log.info("Savings: €{} over {} years → €{}/year. Battery price €{} → ROI {} years",
+				fmt(periodSavings), fmt(periodYears), fmt(annualSavings),
+				fmt(battery.price), fmt(roiYears));
 	}
 
 	private List<String> readCsv() throws Exception {
@@ -157,17 +168,19 @@ public class CsvLoader implements ApplicationRunner {
 		final double maxChargePower;    // kW
 		final double maxDischargePower; // kW
 		final double rte;               // round-trip efficiency, 0..1 (applied on discharge)
+		final double price;             // EUR — purchase + install cost, used for ROI
 		double totalCharged;            // kWh — cumulative energy put into battery
 		double totalDischarged;         // kWh — cumulative energy delivered out of battery (post-loss)
 
 		Battery(double maxCapacity, double maxPercent, double minPercent,
-				double maxChargePower, double maxDischargePower, double rte) {
+				double maxChargePower, double maxDischargePower, double rte, double price) {
 			this.maxCapacity = maxCapacity;
 			this.maxPercent = maxPercent;
 			this.minPercent = minPercent;
 			this.maxChargePower = maxChargePower;
 			this.maxDischargePower = maxDischargePower;
 			this.rte = rte;
+			this.price = price;
 			this.charge = 0;
 		}
 
