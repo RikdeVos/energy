@@ -2,7 +2,6 @@ package com.rikdevos.energy.parsing;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 
 /**
  * Source of cumulative meter {@link Reading}s. One implementation per input format
@@ -12,7 +11,12 @@ import java.util.List;
  *
  * <p>Input is {@link InputStream} rather than {@code List<String>} so non-line-oriented
  * formats (binary, JSON) fit the same seam without buffering the whole payload first.
+ *
+ * <p>Returns {@link ParsedReadings} so implementations can report rows that were
+ * skipped because of per-row validation failures. Implementations are expected to be
+ * tolerant of bad rows (skip + warn) and reserve thrown exceptions for unrecoverable
+ * problems with the input as a whole (e.g. a missing required column).
  */
 public interface ReadingSource {
-    List<Reading> read(InputStream in) throws IOException;
+    ParsedReadings read(InputStream in) throws IOException;
 }

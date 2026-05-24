@@ -9,8 +9,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.rikdevos.energy.parsing.InsufficientDataException;
 import com.rikdevos.energy.parsing.Interval;
 import com.rikdevos.energy.parsing.IntervalBuilder;
+import com.rikdevos.energy.parsing.ParsedReadings;
 import com.rikdevos.energy.parsing.Reading;
 import com.rikdevos.energy.parsing.ReadingSource;
 import com.rikdevos.energy.pricing.CostCalculator;
@@ -55,9 +57,17 @@ public class CalculationService {
     }
 
     public CalculationResult calculate(InputStream csvStream, Battery battery, Tariffs tariffs) throws IOException {
-        List<Reading> readings = source.read(csvStream);
+        ParsedReadings parsed = source.read(csvStream);
+        List<Reading> readings = parsed.readings();
+        if (readings.size() < 2) {
+            // Single boundary check: with fewer than two cumulative readings, no interval
+            // can be built and no simulation is possible. Surface this with both counters
+            // so the 400 response can distinguish "small upload" from "wrong format".
+            throw new InsufficientDataException(readings.size(), parsed.skippedRows());
+        }
         List<Interval> intervals = intervalBuilder.build(readings);
-        log.info("Parsed {} readings, produced {} intervals", readings.size(), intervals.size());
+        log.info("Parsed {} readings ({} skipped), produced {} intervals",
+                readings.size(), parsed.skippedRows(), intervals.size());
 
         double totalHomeImport = intervals.stream().mapToDouble(Interval::importKwh).sum();
         double totalHomeExport = intervals.stream().mapToDouble(Interval::exportKwh).sum();
