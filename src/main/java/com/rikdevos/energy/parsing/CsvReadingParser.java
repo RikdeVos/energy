@@ -19,21 +19,21 @@ import org.springframework.stereotype.Component;
 @Component
 public class CsvReadingParser {
 
-	private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-	public List<Reading> parse(List<String> lines) {
-		List<Reading> out = new ArrayList<>(Math.max(0, lines.size() - 1));
-		for (int i = 1; i < lines.size(); i++) {
-			String line = lines.get(i).trim();
-			if (line.isEmpty()) continue;
-			String[] p = line.split(",");
-			LocalDateTime time = LocalDateTime.parse(p[0].trim(), TIME_FMT);
-			double importT1 = Double.parseDouble(p[1].trim());
-			double importT2 = Double.parseDouble(p[2].trim());
-			double exportT1 = Double.parseDouble(p[3].trim());
-			double exportT2 = Double.parseDouble(p[4].trim());
-			out.add(new Reading(time, importT1, importT2, exportT1, exportT2));
-		}
-		return out;
-	}
+    public List<Reading> parse(List<String> lines) {
+        List<Reading> out = new ArrayList<>(Math.max(0, lines.size() - 1));
+        for (int i = 1; i < lines.size(); i++) {
+            String line = lines.get(i).trim();
+            if (line.isEmpty()) continue;
+            String[] p = line.split(",");
+            LocalDateTime time = LocalDateTime.parse(p[0].trim(), TIME_FMT);
+            double importT1 = Double.parseDouble(p[1].trim());
+            double importT2 = Double.parseDouble(p[2].trim());
+            double exportT1 = Double.parseDouble(p[3].trim());
+            double exportT2 = Double.parseDouble(p[4].trim());
+            out.add(new Reading(time, importT1, importT2, exportT1, exportT2));
+        }
+        return out;
+    }
 }

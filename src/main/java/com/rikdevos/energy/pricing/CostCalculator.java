@@ -12,23 +12,23 @@ package com.rikdevos.energy.pricing;
  */
 public class CostCalculator {
 
-	private final Tariffs tariffs;
+    private final Tariffs tariffs;
 
-	public CostCalculator(Tariffs tariffs) {
-		this.tariffs = tariffs;
-	}
+    public CostCalculator(Tariffs tariffs) {
+        this.tariffs = tariffs;
+    }
 
-	/**
-	 * Net cost in EUR for a flow: positive = money paid to the grid, negative = money
-	 * received. Uses the T1 price on both sides — valid while T1 == T2, which the defaults
-	 * guarantee. A {@code cost(double, double, double, double)} overload would be the
-	 * extension point for tariff splits.
-	 */
-	public double cost(double importKwh, double exportKwh) {
-		return importKwh * tariffs.importT1() - exportKwh * tariffs.exportT1();
-	}
+    /**
+     * Net cost in EUR for a flow: positive = money paid to the grid, negative = money
+     * received. Uses the T1 price on both sides — valid while T1 == T2, which the defaults
+     * guarantee. A {@code cost(double, double, double, double)} overload would be the
+     * extension point for tariff splits.
+     */
+    public double cost(double importKwh, double exportKwh) {
+        return importKwh * tariffs.importT1() - exportKwh * tariffs.exportT1();
+    }
 
-	public Tariffs tariffs() {
-		return tariffs;
-	}
+    public Tariffs tariffs() {
+        return tariffs;
+    }
 }

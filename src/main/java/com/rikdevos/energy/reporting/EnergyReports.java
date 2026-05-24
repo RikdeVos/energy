@@ -22,20 +22,20 @@ import com.rikdevos.energy.simulation.Battery;
 @Component
 public class EnergyReports {
 
-	private static final Logger log = LoggerFactory.getLogger(EnergyReports.class);
+    private static final Logger log = LoggerFactory.getLogger(EnergyReports.class);
 
-	public void logSummary(CalculationResult r, Battery battery) {
-		log.info("Home totals (no battery): import={} kWh, export={} kWh, cost=€{}",
-				Numbers.fmt(r.homeImportKwh()), Numbers.fmt(r.homeExportKwh()), Numbers.fmt(r.costNoBattery()));
-		log.info("Home totals (with battery): import={} kWh, export={} kWh, cost=€{}",
-				Numbers.fmt(r.netImportKwh()), Numbers.fmt(r.netExportKwh()), Numbers.fmt(r.costWithBattery()));
-		log.info("Battery: finalCharge={} kWh, totalCharged={} kWh, totalDischarged={} kWh",
-				Numbers.fmt(r.finalChargeKwh()), Numbers.fmt(r.totalChargedKwh()), Numbers.fmt(r.totalDischargedKwh()));
-		log.info("Battery cycles: {} equivalent full cycles (usable window {} kWh)",
-				Numbers.fmt(r.equivalentFullCycles()), Numbers.fmt(r.usableCapacityKwh()));
-		log.info("Self-consumed via battery (= totalDischarged): {} kWh", Numbers.fmt(battery.totalDischarged()));
-		log.info("Savings: €{} over {} years → €{}/year. Battery price €{} → ROI {} years",
-				Numbers.fmt(r.periodSavings()), Numbers.fmt(r.periodYears()), Numbers.fmt(r.annualSavings()),
-				Numbers.fmt(r.batteryPrice()), Numbers.fmt(r.roiYears()));
-	}
+    public void logSummary(CalculationResult r, Battery battery) {
+        log.info("Home totals (no battery): import={} kWh, export={} kWh, cost=€{}",
+                Numbers.fmt(r.homeImportKwh()), Numbers.fmt(r.homeExportKwh()), Numbers.fmt(r.costNoBattery()));
+        log.info("Home totals (with battery): import={} kWh, export={} kWh, cost=€{}",
+                Numbers.fmt(r.netImportKwh()), Numbers.fmt(r.netExportKwh()), Numbers.fmt(r.costWithBattery()));
+        log.info("Battery: finalCharge={} kWh, totalCharged={} kWh, totalDischarged={} kWh",
+                Numbers.fmt(r.finalChargeKwh()), Numbers.fmt(r.totalChargedKwh()), Numbers.fmt(r.totalDischargedKwh()));
+        log.info("Battery cycles: {} equivalent full cycles (usable window {} kWh)",
+                Numbers.fmt(r.equivalentFullCycles()), Numbers.fmt(r.usableCapacityKwh()));
+        log.info("Self-consumed via battery (= totalDischarged): {} kWh", Numbers.fmt(battery.totalDischarged()));
+        log.info("Savings: €{} over {} years → €{}/year. Battery price €{} → ROI {} years",
+                Numbers.fmt(r.periodSavings()), Numbers.fmt(r.periodYears()), Numbers.fmt(r.annualSavings()),
+                Numbers.fmt(r.batteryPrice()), Numbers.fmt(r.roiYears()));
+    }
 }

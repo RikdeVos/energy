@@ -26,24 +26,24 @@ import com.rikdevos.energy.calculation.CalculationService;
  */
 @RestController
 public class CalculateController {
-	private final CalculationService calculationService;
+    private final CalculationService calculationService;
 
-	public CalculateController(CalculationService calculationService) {
-		this.calculationService = calculationService;
-	}
+    public CalculateController(CalculationService calculationService) {
+        this.calculationService = calculationService;
+    }
 
-	@PostMapping(value = "/calculate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public CalculationResult calculate(
-			@RequestPart("csv") MultipartFile csv,
-			@RequestPart("battery") BatterySpecDto battery,
-			@RequestPart("tariffs") TariffsDto tariffs) throws IOException {
-		List<String> lines;
+    @PostMapping(value = "/calculate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public CalculationResult calculate(
+            @RequestPart("csv") MultipartFile csv,
+            @RequestPart("battery") BatterySpecDto battery,
+            @RequestPart("tariffs") TariffsDto tariffs) throws IOException {
+        List<String> lines;
 
-		try (BufferedReader reader = new BufferedReader(
-				new InputStreamReader(csv.getInputStream(), StandardCharsets.UTF_8))) {
-			lines = reader.lines().toList();
-		}
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(csv.getInputStream(), StandardCharsets.UTF_8))) {
+            lines = reader.lines().toList();
+        }
 
-		return calculationService.calculate(lines, battery.toBattery(), tariffs.toTarrifs());
-	}
+        return calculationService.calculate(lines, battery.toBattery(), tariffs.toTarrifs());
+    }
 }

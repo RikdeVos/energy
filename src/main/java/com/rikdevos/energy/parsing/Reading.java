@@ -8,8 +8,13 @@ import java.time.LocalDateTime;
  * the meter is physically replaced.
  */
 public record Reading(LocalDateTime time, double importT1, double importT2,
-					  double exportT1, double exportT2) {
+                      double exportT1, double exportT2) {
 
-	public double totalImport() { return importT1 + importT2; }
-	public double totalExport() { return exportT1 + exportT2; }
+    public double totalImport() {
+        return importT1 + importT2;
+    }
+
+    public double totalExport() {
+        return exportT1 + exportT2;
+    }
 }

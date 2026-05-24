@@ -8,9 +8,10 @@ package com.rikdevos.energy.reporting;
  */
 final class Numbers {
 
-	private Numbers() {}
+    private Numbers() {
+    }
 
-	static String fmt(double v) {
-		return String.format("%.3f", v);
-	}
+    static String fmt(double v) {
+        return String.format("%.3f", v);
+    }
 }

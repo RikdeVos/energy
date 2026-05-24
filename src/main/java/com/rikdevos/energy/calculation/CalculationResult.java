@@ -11,21 +11,22 @@ package com.rikdevos.energy.calculation;
  * is unambiguous here because ROI is always positive when the battery is profitable.
  */
 public record CalculationResult(
-		int intervalsParsed,
-		double homeImportKwh,
-		double homeExportKwh,
-		double costNoBattery,
-		double netImportKwh,
-		double netExportKwh,
-		double costWithBattery,
-		double finalChargeKwh,
-		double totalChargedKwh,
-		double totalDischargedKwh,
-		double equivalentFullCycles,
-		double usableCapacityKwh,
-		double periodYears,
-		double periodSavings,
-		double annualSavings,
-		double batteryPrice,
-		double roiYears
-) {}
+        int intervalsParsed,
+        double homeImportKwh,
+        double homeExportKwh,
+        double costNoBattery,
+        double netImportKwh,
+        double netExportKwh,
+        double costWithBattery,
+        double finalChargeKwh,
+        double totalChargedKwh,
+        double totalDischargedKwh,
+        double equivalentFullCycles,
+        double usableCapacityKwh,
+        double periodYears,
+        double periodSavings,
+        double annualSavings,
+        double batteryPrice,
+        double roiYears
+) {
+}

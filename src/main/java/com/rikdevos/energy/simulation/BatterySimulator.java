@@ -23,40 +23,40 @@ import com.rikdevos.energy.parsing.Interval;
 @Component
 public class BatterySimulator {
 
-	// 15-minute intervals expressed as a fraction of an hour, so kW * INTERVAL_HOURS = kWh.
-	// If input resolution changes (e.g. 5-min readings), change this constant.
-	private static final double INTERVAL_HOURS = 0.25;
+    // 15-minute intervals expressed as a fraction of an hour, so kW * INTERVAL_HOURS = kWh.
+    // If input resolution changes (e.g. 5-min readings), change this constant.
+    private static final double INTERVAL_HOURS = 0.25;
 
-	public SimResult simulate(Battery b, List<Interval> intervals) {
-		double maxChargeStep = b.maxChargePower() * INTERVAL_HOURS;
-		double maxDischargeStep = b.maxDischargePower() * INTERVAL_HOURS;
-		double upper = b.upperLimit();
-		double lower = b.lowerLimit();
-		double rte = b.rte();
+    public SimResult simulate(Battery b, List<Interval> intervals) {
+        double maxChargeStep = b.maxChargePower() * INTERVAL_HOURS;
+        double maxDischargeStep = b.maxDischargePower() * INTERVAL_HOURS;
+        double upper = b.upperLimit();
+        double lower = b.lowerLimit();
+        double rte = b.rte();
 
-		double netImport = 0;
-		double netExport = 0;
+        double netImport = 0;
+        double netExport = 0;
 
-		for (Interval it : intervals) {
-			if (it.exportKwh() > 0) {
-				double headroom = Math.max(0, upper - b.charge);
-				double actual = Math.min(Math.min(it.exportKwh(), headroom), maxChargeStep);
-				b.charge += actual;
-				b.totalCharged += actual;
-				netExport += it.exportKwh() - actual;
-			}
-			if (it.importKwh() > 0) {
-				// RTE applies on discharge: delivering `actual` kWh to the home drains
-				// `actual / rte` from the cell, so the stored-energy cap limits the
-				// *deliverable* side to `available * rte`.
-				double available = Math.max(0, b.charge - lower);
-				double deliverableFromStore = available * rte;
-				double actual = Math.min(Math.min(it.importKwh(), deliverableFromStore), maxDischargeStep);
-				b.charge -= actual / rte;
-				b.totalDischarged += actual;
-				netImport += it.importKwh() - actual;
-			}
-		}
-		return new SimResult(netImport, netExport);
-	}
+        for (Interval it : intervals) {
+            if (it.exportKwh() > 0) {
+                double headroom = Math.max(0, upper - b.charge);
+                double actual = Math.min(Math.min(it.exportKwh(), headroom), maxChargeStep);
+                b.charge += actual;
+                b.totalCharged += actual;
+                netExport += it.exportKwh() - actual;
+            }
+            if (it.importKwh() > 0) {
+                // RTE applies on discharge: delivering `actual` kWh to the home drains
+                // `actual / rte` from the cell, so the stored-energy cap limits the
+                // *deliverable* side to `available * rte`.
+                double available = Math.max(0, b.charge - lower);
+                double deliverableFromStore = available * rte;
+                double actual = Math.min(Math.min(it.importKwh(), deliverableFromStore), maxDischargeStep);
+                b.charge -= actual / rte;
+                b.totalDischarged += actual;
+                netImport += it.importKwh() - actual;
+            }
+        }
+        return new SimResult(netImport, netExport);
+    }
 }

@@ -38,67 +38,67 @@ import com.rikdevos.energy.pricing.Tariffs;
 @AutoConfigureMockMvc
 class CalculateControllerIT {
 
-	@Autowired
-	private MockMvc mockMvc;
+    @Autowired
+    private MockMvc mockMvc;
 
-	@Autowired
-	private ObjectMapper objectMapper;
+    @Autowired
+    private ObjectMapper objectMapper;
 
-	@Test
-	void calculatesResultsForRealCsv() throws Exception {
-		// Marstek Venus E Gen 3.0 values paired with the user's real tariff rates —
-		// together they reproduce the log output the app produced when these were hardcoded.
-		BatterySpecDto battery = new BatterySpecDto(5.12, 100, 10, 2.5, 0.8, 0.82, 1099);
-		Tariffs tariffs = new Tariffs(0.23236, 0.23236, 0.02, 0.02);
+    @Test
+    void calculatesResultsForRealCsv() throws Exception {
+        // Marstek Venus E Gen 3.0 values paired with the user's real tariff rates —
+        // together they reproduce the log output the app produced when these were hardcoded.
+        BatterySpecDto battery = new BatterySpecDto(5.12, 100, 10, 2.5, 0.8, 0.82, 1099);
+        Tariffs tariffs = new Tariffs(0.23236, 0.23236, 0.02, 0.02);
 
-		// try-with-resources because the JVM holds the stream open otherwise, and
-		// ClassPathResource gives us a clearer error than a raw null stream if the file
-		// has gone missing from the classpath.
-		byte[] csvBytes;
-		try (var in = new ClassPathResource("source.csv").getInputStream()) {
-			csvBytes = in.readAllBytes();
-		}
+        // try-with-resources because the JVM holds the stream open otherwise, and
+        // ClassPathResource gives us a clearer error than a raw null stream if the file
+        // has gone missing from the classpath.
+        byte[] csvBytes;
+        try (var in = new ClassPathResource("source.csv").getInputStream()) {
+            csvBytes = in.readAllBytes();
+        }
 
-		MockMultipartFile csvPart = new MockMultipartFile(
-				"csv", "source.csv", MediaType.TEXT_PLAIN_VALUE, csvBytes);
-		// battery + tariffs are JSON-serialized DTOs — matches what a real client would
-		// send in a multipart/form-data request with Content-Type: application/json per part.
-		MockMultipartFile batteryPart = new MockMultipartFile(
-				"battery", "battery.json", MediaType.APPLICATION_JSON_VALUE,
-				objectMapper.writeValueAsBytes(battery));
-		MockMultipartFile tariffsPart = new MockMultipartFile(
-				"tariffs", "tariffs.json", MediaType.APPLICATION_JSON_VALUE,
-				objectMapper.writeValueAsBytes(tariffs));
+        MockMultipartFile csvPart = new MockMultipartFile(
+                "csv", "source.csv", MediaType.TEXT_PLAIN_VALUE, csvBytes);
+        // battery + tariffs are JSON-serialized DTOs — matches what a real client would
+        // send in a multipart/form-data request with Content-Type: application/json per part.
+        MockMultipartFile batteryPart = new MockMultipartFile(
+                "battery", "battery.json", MediaType.APPLICATION_JSON_VALUE,
+                objectMapper.writeValueAsBytes(battery));
+        MockMultipartFile tariffsPart = new MockMultipartFile(
+                "tariffs", "tariffs.json", MediaType.APPLICATION_JSON_VALUE,
+                objectMapper.writeValueAsBytes(tariffs));
 
-		MvcResult response = mockMvc.perform(multipart("/calculate")
-						.file(csvPart)
-						.file(batteryPart)
-						.file(tariffsPart))
-				.andExpect(status().isOk())
-				.andReturn();
+        MvcResult response = mockMvc.perform(multipart("/calculate")
+                        .file(csvPart)
+                        .file(batteryPart)
+                        .file(tariffsPart))
+                .andExpect(status().isOk())
+                .andReturn();
 
-		CalculationResult r = objectMapper.readValue(
-				response.getResponse().getContentAsByteArray(), CalculationResult.class);
+        CalculationResult r = objectMapper.readValue(
+                response.getResponse().getContentAsByteArray(), CalculationResult.class);
 
-		// Shape: one year of 15-min readings → ~35k intervals (minus the one meter-reset drop).
-		assertThat(r.intervalsParsed()).isGreaterThan(30_000);
+        // Shape: one year of 15-min readings → ~35k intervals (minus the one meter-reset drop).
+        assertThat(r.intervalsParsed()).isGreaterThan(30_000);
 
-		// Baseline flows are non-trivial.
-		assertThat(r.homeImportKwh()).isGreaterThan(0);
-		assertThat(r.homeExportKwh()).isGreaterThan(0);
+        // Baseline flows are non-trivial.
+        assertThat(r.homeImportKwh()).isGreaterThan(0);
+        assertThat(r.homeExportKwh()).isGreaterThan(0);
 
-		// Battery reduces both sides of the grid exchange.
-		assertThat(r.netImportKwh()).isLessThan(r.homeImportKwh());
-		assertThat(r.netExportKwh()).isLessThan(r.homeExportKwh());
+        // Battery reduces both sides of the grid exchange.
+        assertThat(r.netImportKwh()).isLessThan(r.homeImportKwh());
+        assertThat(r.netExportKwh()).isLessThan(r.homeExportKwh());
 
-		// Battery actually cycled.
-		assertThat(r.totalChargedKwh()).isGreaterThan(0);
-		assertThat(r.totalDischargedKwh()).isGreaterThan(0);
+        // Battery actually cycled.
+        assertThat(r.totalChargedKwh()).isGreaterThan(0);
+        assertThat(r.totalDischargedKwh()).isGreaterThan(0);
 
-		// Dataset spans roughly one year — ROI annualization relies on this window.
-		assertThat(r.periodYears()).isBetween(0.9, 1.1);
+        // Dataset spans roughly one year — ROI annualization relies on this window.
+        assertThat(r.periodYears()).isBetween(0.9, 1.1);
 
-		// Battery spec round-tripped through the request.
-		assertThat(r.batteryPrice()).isEqualTo(1099.0);
-	}
+        // Battery spec round-tripped through the request.
+        assertThat(r.batteryPrice()).isEqualTo(1099.0);
+    }
 }
