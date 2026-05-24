@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.rikdevos.energy.web.dto.BatterySpecDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,7 +18,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.ObjectMapper;
 import com.rikdevos.energy.calculation.CalculationResult;
 import com.rikdevos.energy.pricing.Tariffs;
-import com.rikdevos.energy.web.CalculateController.BatterySpec;
 
 /**
  * End-to-end test via {@link MockMvc}: goes through the full Spring MVC request
@@ -48,7 +48,7 @@ class CalculateControllerIT {
 	void calculatesResultsForRealCsv() throws Exception {
 		// Marstek Venus E Gen 3.0 values paired with the user's real tariff rates —
 		// together they reproduce the log output the app produced when these were hardcoded.
-		BatterySpec battery = new BatterySpec(5.12, 100, 10, 2.5, 0.8, 0.82, 1099);
+		BatterySpecDto battery = new BatterySpecDto(5.12, 100, 10, 2.5, 0.8, 0.82, 1099);
 		Tariffs tariffs = new Tariffs(0.23236, 0.23236, 0.02, 0.02);
 
 		// try-with-resources because the JVM holds the stream open otherwise, and
