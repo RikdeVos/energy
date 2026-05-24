@@ -3,18 +3,13 @@ package com.rikdevos.energy.parsing;
 import java.time.LocalDateTime;
 
 /**
- * One row from the smart-meter CSV: a timestamp and four cumulative kWh counters
- * (import on T1/T2, export on T1/T2). Cumulative — these numbers only go up until
- * the meter is physically replaced.
+ * One reading from a smart meter: a timestamp and two cumulative kWh counters
+ * (total import, total export). Cumulative — these numbers only go up until the
+ * meter is physically replaced.
+ *
+ * <p>Format-agnostic: any vendor-specific quadrant breakdown (e.g. HomeWizard's
+ * T1/T2 tariffs) is summed at parse time by the {@link ReadingSource} implementation,
+ * so downstream code never needs to know which source it came from.
  */
-public record Reading(LocalDateTime time, double importT1, double importT2,
-                      double exportT1, double exportT2) {
-
-    public double totalImport() {
-        return importT1 + importT2;
-    }
-
-    public double totalExport() {
-        return exportT1 + exportT2;
-    }
+public record Reading(LocalDateTime time, double totalImport, double totalExport) {
 }
