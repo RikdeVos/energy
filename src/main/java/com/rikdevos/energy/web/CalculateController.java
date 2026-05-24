@@ -17,13 +17,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.rikdevos.energy.calculation.CalculationResult;
 import com.rikdevos.energy.calculation.CalculationService;
 
-/**
- * Single endpoint {@code POST /calculate}. Multipart because one of the three inputs is
- * a ~2 MB CSV — base64-in-JSON would double the payload and be awkward to build from
- * both curl and the integration test. With multipart, {@code @RequestPart} on a
- * {@code MultipartFile} handles the file and {@code @RequestPart} on a record handles
- * JSON parts via Jackson automatically.
- */
 @RestController
 public class CalculateController {
     private final CalculationService calculationService;
