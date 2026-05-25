@@ -31,7 +31,7 @@ public class CalculateController {
     public CalculationResult calculate(
             @RequestPart("csv") MultipartFile csv,
             @RequestPart("battery") @Valid BatterySpecDto battery,
-            @RequestPart("tariffs") TariffsDto tariffs) throws IOException {
+            @RequestPart("tariffs") @Valid TariffsDto tariffs) throws IOException {
         if (csv.isEmpty()) {
             throw InvalidCsvFileException.empty();
         }
