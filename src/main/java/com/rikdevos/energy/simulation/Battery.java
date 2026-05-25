@@ -84,12 +84,14 @@ public class Battery {
         return upperLimit() - lowerLimit();
     }
 
-    // Equivalent full cycles: cumulative energy charged divided by the usable window.
-    // Industry-standard wear metric — a LFP pack rated for ~6000 cycles can be compared
-    // directly against this number. Uses `totalCharged` (not discharged) because the
-    // charge side is what ages the cells; RTE losses don't add wear.
+    // Equivalent full cycles: symmetric convention used by most consumer BMSs (Tesla
+    // Powerwall, BYD, etc.) — averages charge and discharge throughput so one full
+    // charge + full discharge counts as one cycle, not two.
     public double equivalentFullCycles() {
-        double usable = usableCapacity();
-        return usable > 0 ? totalCharged / usable : 0;
+        final double usable = usableCapacity();
+        if (usable <= 0) {
+            throw new IllegalStateException("Battery capacity is 0");
+        }
+        return (totalCharged + totalDischarged) / (2 * usable);
     }
 }
