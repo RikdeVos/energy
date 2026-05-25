@@ -1,12 +1,11 @@
 package com.rikdevos.energy.web;
 
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -69,21 +68,22 @@ class CsvExceptionHandler {
                 HttpStatus.BAD_REQUEST, "Request body failed validation");
         pd.setTitle("Invalid request");
 
-        List<ObjectError> objectErrors = e.getBindingResult().getAllErrors();
-
-        var violationList = new ArrayList<Map<String, String>>();
-
-        var fieldErrors = e.getBindingResult().getFieldErrors();
-        fieldErrors.forEach(fieldError -> {
+        // LinkedHashMap dedupes multiple constraint failures on the same field into one
+        // entry (messages joined with "; ") while preserving the order Bean Validation
+        // reported them — so the JSON response is stable across runs and easy to diff.
+        LinkedHashMap<String, String> byField = new LinkedHashMap<>();
+        e.getBindingResult().getFieldErrors().forEach(fieldError -> {
             String field = fieldError.getField();
             String message = fieldError.getDefaultMessage();
             
             if (message == null) message = "Invalid field";
-
-            violationList.add(Map.of("field", field, "message", message));
+            byField.merge(field, message, (existing, addition) -> existing + "; " + addition);
         });
 
-        pd.setProperty("violations", violationList);
+        List<Map<String, String>> violations = byField.entrySet().stream()
+                .map(entry -> Map.of("field", entry.getKey(), "message", entry.getValue()))
+                .toList();
+        pd.setProperty("violations", violations);
         return pd;
     }
 }
