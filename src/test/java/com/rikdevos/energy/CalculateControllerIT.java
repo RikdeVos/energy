@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 
 import tools.jackson.databind.ObjectMapper;
 import com.rikdevos.energy.calculation.CalculationResult;
@@ -107,6 +108,32 @@ class CalculateControllerIT {
     }
 
     @Test
+    void invalidSourceCsvFile_returns400ProblemDetail() throws Exception {
+        // Mirrors calculatesResultsForRealCsv but with a fixture whose header lacks the
+        // export columns. Exercises the same classpath-loading flow a real client would
+        // hit when uploading a malformed file.
+        byte[] csvBytes;
+        try (var in = new ClassPathResource("invalidSource.csv").getInputStream()) {
+            csvBytes = in.readAllBytes();
+        }
+
+        MvcResult response = postCalculate(csvBytes)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andReturn();
+
+        Map<String, Object> body = objectMapper.readValue(
+                response.getResponse().getContentAsByteArray(), Map.class);
+
+        assertThat(body).containsEntry("title", "Invalid CSV header");
+        assertThat(body).containsEntry("status", 400);
+        @SuppressWarnings("unchecked")
+        List<String> missing = (List<String>) body.get("missingColumns");
+        assertThat(missing).contains("Export T1 kWh", "Export T2 kWh");
+        assertThat((String) body.get("actualHeader")).contains("Solar kWh");
+    }
+
+    @Test
     void missingHeaderColumn_returns400ProblemDetail() throws Exception {
         // Header omits "Export T1 kWh" and "Export T2 kWh" — header validation must fire
         // and the response must be RFC 7807 with the missing columns named.
@@ -175,13 +202,19 @@ class CalculateControllerIT {
         assertThat(body).containsEntry("skippedRows", 0);
     }
 
-    /** Shared multipart-POST helper for the error-path tests; battery/tariffs values don't matter. */
-    private org.springframework.test.web.servlet.ResultActions postCalculate(String csv) throws Exception {
+    /**
+     * Shared multipart-POST helper for the error-path tests; battery/tariffs values don't matter.
+     */
+    private ResultActions postCalculate(String csv) throws Exception {
+        return postCalculate(csv.getBytes());
+    }
+
+    private ResultActions postCalculate(byte[] csvBytes) throws Exception {
         BatterySpecDto battery = new BatterySpecDto(5.12, 100, 10, 2.5, 0.8, 0.82, 1099);
         Tariffs tariffs = new Tariffs(0.23236, 0.23236, 0.02, 0.02);
 
         MockMultipartFile csvPart = new MockMultipartFile(
-                "csv", "source.csv", MediaType.TEXT_PLAIN_VALUE, csv.getBytes());
+                "csv", "source.csv", MediaType.TEXT_PLAIN_VALUE, csvBytes);
         MockMultipartFile batteryPart = new MockMultipartFile(
                 "battery", "battery.json", MediaType.APPLICATION_JSON_VALUE,
                 objectMapper.writeValueAsBytes(battery));
