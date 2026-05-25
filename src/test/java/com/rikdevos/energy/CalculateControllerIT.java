@@ -202,6 +202,82 @@ class CalculateControllerIT {
         assertThat(body).containsEntry("skippedRows", 0);
     }
 
+    @Test
+    void invalidBattery_negativeMaxCapacity_returns400Violations() throws Exception {
+        // maxCapacity must be > 0; -1.0 fires the @DecimalMin(inclusive=false) constraint.
+        BatterySpecDto battery = new BatterySpecDto(-1.0, 100, 10, 2.5, 0.8, 0.82, 1099);
+        MvcResult response = postWithBattery(battery, validCsv())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andReturn();
+
+        Map<String, Object> body = parseBody(response);
+        assertThat(body).containsEntry("title", "Invalid request");
+        assertThat(body).containsEntry("status", 400);
+        assertThat(violationFields(body)).contains("maxCapacity");
+    }
+
+    @Test
+    void invalidBattery_minPercentGteMax_returns400Violations() throws Exception {
+        // Cross-field @AssertTrue: minPercent must be strictly less than maxPercent.
+        // 90 >= 10 trips the SoC-window invariant. The violation field is the getter
+        // name minus "is" prefix, i.e. "socWindowValid".
+        BatterySpecDto battery = new BatterySpecDto(5.12, 10, 90, 2.5, 0.8, 0.82, 1099);
+        Map<String, Object> body = parseBody(
+                postWithBattery(battery, validCsv())
+                        .andExpect(status().isBadRequest())
+                        .andReturn());
+
+        assertThat(body).containsEntry("title", "Invalid request");
+        assertThat(violationFields(body)).contains("socWindowValid");
+    }
+
+    @Test
+    void invalidBattery_rteAboveOne_returns400Violations() throws Exception {
+        // rte is a round-trip efficiency: 0 < rte <= 1. 1.5 is physically impossible
+        // (free-energy battery) and trips @DecimalMax("1.0").
+        BatterySpecDto battery = new BatterySpecDto(5.12, 100, 10, 2.5, 0.8, 1.5, 1099);
+        Map<String, Object> body = parseBody(
+                postWithBattery(battery, validCsv())
+                        .andExpect(status().isBadRequest())
+                        .andReturn());
+
+        assertThat(body).containsEntry("title", "Invalid request");
+        assertThat(violationFields(body)).contains("rte");
+    }
+
+    @Test
+    void emptyCsv_returns400() throws Exception {
+        // Zero-byte multipart part. csv.isEmpty() short-circuits before any validation
+        // on the JSON parts runs, so battery/tariffs values can be anything valid.
+        MvcResult response = postCalculate(new byte[0])
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andReturn();
+
+        Map<String, Object> body = parseBody(response);
+        assertThat(body).containsEntry("title", "Invalid CSV file");
+        assertThat(body).containsEntry("reason", "empty");
+    }
+
+    @Test
+    void oversizedCsv_returns400() throws Exception {
+        // 10 MB + 1 byte. Filled with a single repeated character to keep the test fast;
+        // the controller only consults getSize(), not the contents.
+        byte[] huge = new byte[10 * 1024 * 1024 + 1];
+        java.util.Arrays.fill(huge, (byte) 'x');
+
+        MvcResult response = postCalculate(huge)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andReturn();
+
+        Map<String, Object> body = parseBody(response);
+        assertThat(body).containsEntry("title", "Invalid CSV file");
+        assertThat(body).containsEntry("reason", "too_large");
+        assertThat(body).containsKey("sizeBytes");
+    }
+
     /**
      * Shared multipart-POST helper for the error-path tests; battery/tariffs values don't matter.
      */
@@ -211,6 +287,10 @@ class CalculateControllerIT {
 
     private ResultActions postCalculate(byte[] csvBytes) throws Exception {
         BatterySpecDto battery = new BatterySpecDto(5.12, 100, 10, 2.5, 0.8, 0.82, 1099);
+        return postWithBattery(battery, csvBytes);
+    }
+
+    private ResultActions postWithBattery(BatterySpecDto battery, byte[] csvBytes) throws Exception {
         Tariffs tariffs = new Tariffs(0.23236, 0.23236, 0.02, 0.02);
 
         MockMultipartFile csvPart = new MockMultipartFile(
@@ -226,5 +306,27 @@ class CalculateControllerIT {
                 .file(csvPart)
                 .file(batteryPart)
                 .file(tariffsPart));
+    }
+
+    private static byte[] validCsv() {
+        // Minimal well-formed CSV: header + two rows so we get past both the empty-file
+        // check and the InsufficientDataException path. We're testing JSON validation here,
+        // so the CSV just needs to be syntactically acceptable when the request reaches it.
+        return """
+                time,Import T1 kWh,Import T2 kWh,Export T1 kWh,Export T2 kWh,L1 max W,L2 max W,L3 max W
+                2024-01-01 00:00,10.0,5.0,2.0,1.0,100,100,100
+                2024-01-01 00:15,10.1,5.0,2.0,1.0,100,100,100
+                """.getBytes();
+    }
+
+    private Map<String, Object> parseBody(MvcResult result) throws Exception {
+        return objectMapper.readValue(result.getResponse().getContentAsByteArray(), Map.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> violationFields(Map<String, Object> body) {
+        List<Map<String, String>> v = (List<Map<String, String>>) body.get("violations");
+        assertThat(v).as("ProblemDetail must include a 'violations' list").isNotNull();
+        return v.stream().map(entry -> entry.get("field")).toList();
     }
 }
