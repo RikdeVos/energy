@@ -1,94 +1,137 @@
 <!doctype html>
 <html lang="en" data-theme="dark">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Battery ROI simulator</title>
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-	<style>
-		fieldset { margin-bottom: 1.5rem; }
-		.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
-		@media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
-		#results table th.value-col, #results table td.num { text-align: right; }
-		#results table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
-		tbody.group tr:first-child th { padding-top: 1.25rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--pico-muted-color); }
-		#status article[role="alert"] { border-left: 4px solid var(--pico-del-color); }
-	</style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Battery ROI simulator</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        fieldset {
+            margin-bottom: 1.5rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        #results table th.value-col, #results table td.num {
+            text-align: right;
+        }
+
+        #results table td.num {
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        tbody.group tr:first-child th {
+            padding-top: 1.25rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--pico-muted-color);
+        }
+
+        #status article[role="alert"] {
+            border-left: 4px solid var(--pico-del-color);
+        }
+    </style>
 </head>
 <body>
 <main class="container">
-	<h1>Battery ROI simulator</h1>
-	<p>Upload a year of 15-minute smart-meter readings, pick a battery spec and your tariffs, and see what the grid bill would have looked like with a home battery inline.</p>
+    <h1>Battery ROI simulator</h1>
+    <p>Upload a year of 15-minute smart-meter readings, pick a battery spec and your tariffs, and
+        see what the grid bill would have looked like with a home battery inline.</p>
 
-	<form id="calcForm">
-		<fieldset>
-			<legend><strong>CSV</strong></legend>
-			<label>
-				Smart-meter readings (CSV)
-				<input type="file" name="csv" accept=".csv,text/csv" required>
-				<small>Columns: time, Import T1/T2 kWh, Export T1/T2 kWh, L1/L2/L3 max W.</small>
-			</label>
-		</fieldset>
+    <form id="calcForm">
+        <fieldset>
+            <legend><strong>CSV</strong></legend>
+            <label>
+                Smart-meter readings (CSV)
+                <input type="file" name="csv" accept=".csv,text/csv" required>
+                <small>Columns: time, Import T1/T2 kWh, Export T1/T2 kWh, L1/L2/L3 max W.</small>
+            </label>
+        </fieldset>
 
-		<fieldset>
-			<legend><strong>Battery</strong></legend>
-			<div class="grid-2">
-				<label>Max capacity (kWh)
-					<input type="number" name="maxCapacity" value="5.12" step="0.01" min="0" required>
-				</label>
-				<label>Price (EUR)
-					<input type="number" name="price" value="1099" step="1" min="0" required>
-				</label>
-				<label>Max percent (%)
-					<input type="number" name="maxPercent" value="100" step="1" min="0" max="100" required>
-				</label>
-				<label>Min percent (%)
-					<input type="number" name="minPercent" value="10" step="1" min="0" max="100" required>
-				</label>
-				<label>Max charge power (kW)
-					<input type="number" name="maxChargePower" value="2.5" step="0.01" min="0" required>
-				</label>
-				<label>Max discharge power (kW)
-					<input type="number" name="maxDischargePower" value="0.8" step="0.01" min="0" required>
-				</label>
-				<label>Round-trip efficiency (0–1)
-					<input type="number" name="rte" value="0.82" step="0.01" min="0" max="1" required>
-				</label>
-			</div>
-		</fieldset>
+        <fieldset>
+            <legend><strong>Battery</strong></legend>
+            <div class="grid-2">
+                <label>Max capacity (kWh)
+                    <input type="number" name="maxCapacity" value="5.12" step="0.01" min="0"
+                           required>
+                </label>
+                <label>Price (EUR)
+                    <input type="number" name="price" value="1099" step="1" min="0" required>
+                </label>
+                <label>Max percent (%)
+                    <input type="number" name="maxPercent" value="100" step="1" min="0" max="100"
+                           required>
+                </label>
+                <label>Min percent (%)
+                    <input type="number" name="minPercent" value="10" step="1" min="0" max="100"
+                           required>
+                </label>
+                <label>Max charge power (kW)
+                    <input type="number" name="maxChargePower" value="2.5" step="0.01" min="0"
+                           required>
+                </label>
+                <label>Max discharge power (kW)
+                    <input type="number" name="maxDischargePower" value="0.8" step="0.01" min="0"
+                           required>
+                </label>
+                <label>Round-trip efficiency (0–1)
+                    <input type="number" name="rte" value="0.82" step="0.01" min="0" max="1"
+                           required>
+                </label>
+            </div>
+        </fieldset>
 
-		<fieldset>
-			<legend><strong>Tariffs</strong></legend>
-			<div class="grid-2">
-				<label>Import T1 (EUR/kWh)
-					<input type="number" name="importT1" value="0.23236" step="0.00001" min="0" required>
-				</label>
-				<label>Import T2 (EUR/kWh)
-					<input type="number" name="importT2" value="0.23236" step="0.00001" min="0" required>
-				</label>
-				<label>Export T1 (EUR/kWh)
-					<input type="number" name="exportT1" value="0.02" step="0.00001" min="0" required>
-				</label>
-				<label>Export T2 (EUR/kWh)
-					<input type="number" name="exportT2" value="0.02" step="0.00001" min="0" required>
-				</label>
-			</div>
-		</fieldset>
+        <fieldset>
+            <legend><strong>Tariffs</strong></legend>
+            <div class="grid-2">
+                <label>Import T1 (EUR/kWh)
+                    <input type="number" name="importT1" value="0.23236" step="0.00001" min="0"
+                           required>
+                </label>
+                <label>Import T2 (EUR/kWh)
+                    <input type="number" name="importT2" value="0.23236" step="0.00001" min="0"
+                           required>
+                </label>
+                <label>Export T1 (EUR/kWh)
+                    <input type="number" name="exportT1" value="0.02" step="0.00001" min="0"
+                           required>
+                </label>
+                <label>Export T2 (EUR/kWh)
+                    <input type="number" name="exportT2" value="0.02" step="0.00001" min="0"
+                           required>
+                </label>
+            </div>
+        </fieldset>
 
-		<button id="submitBtn" type="submit">Calculate</button>
-	</form>
+        <button id="submitBtn" type="submit">Calculate</button>
+    </form>
 
-	<section id="status" hidden></section>
+    <section id="status" hidden></section>
 
-	<section id="results" hidden>
-		<h2>Results</h2>
-		<table>
-			<thead>
-				<tr><th scope="col">Metric</th><th scope="col" class="value-col">Value</th></tr>
-			</thead>
-			<tbody id="resultsBody"></tbody>
-		</table>
-	</section>
+    <section id="results" hidden>
+        <h2>Results</h2>
+        <table>
+            <thead>
+            <tr>
+                <th scope="col">Metric</th>
+                <th scope="col" class="value-col">Value</th>
+            </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+        </table>
+    </section>
 </main>
 
 <script src="app.js" defer></script>
