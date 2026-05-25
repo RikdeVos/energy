@@ -83,6 +83,44 @@ function renderResults(data) {
 // without a frontend change.
 const PROBLEM_STANDARD_KEYS = new Set(['type', 'title', 'status', 'detail', 'instance']);
 
+// Renders a single ProblemDetail extra value into the given element. Arrays of objects
+// (e.g. validation `violations`: [{field, message}, ...]) render as a nested list so
+// each entry's keys show up instead of "[object Object]". Plain scalars and arrays of
+// scalars stay on one line.
+function renderExtraValue(parent, value) {
+	if (Array.isArray(value)) {
+		if (value.every(item => item === null || typeof item !== 'object')) {
+			parent.textContent = value.join(', ');
+			return;
+		}
+		const ul = document.createElement('ul');
+		ul.style.margin = '0';
+		ul.style.paddingLeft = '1.25rem';
+		for (const item of value) {
+			const li = document.createElement('li');
+			li.textContent = formatObjectEntry(item);
+			ul.appendChild(li);
+		}
+		parent.appendChild(ul);
+		return;
+	}
+	if (value !== null && typeof value === 'object') {
+		parent.textContent = formatObjectEntry(value);
+		return;
+	}
+	parent.textContent = String(value);
+}
+
+// "key: value, key: value" for plain objects; falls back to JSON for nested shapes.
+function formatObjectEntry(obj) {
+	if (obj === null || typeof obj !== 'object') return String(obj);
+	const parts = [];
+	for (const [k, v] of Object.entries(obj)) {
+		parts.push(`${k}: ${v !== null && typeof v === 'object' ? JSON.stringify(v) : v}`);
+	}
+	return parts.join(', ');
+}
+
 function showError(title, detail, extras) {
 	const status = document.getElementById('status');
 	status.innerHTML = '';
@@ -110,9 +148,9 @@ function showError(title, detail, extras) {
 			dt.textContent = k;
 			dt.style.fontWeight = 'bold';
 			const dd = document.createElement('dd');
-			dd.textContent = Array.isArray(v) ? v.join(', ') : String(v);
 			dd.style.marginLeft = '0';
 			dd.style.marginBottom = '0.25rem';
+			renderExtraValue(dd, v);
 			dl.appendChild(dt);
 			dl.appendChild(dd);
 		}
