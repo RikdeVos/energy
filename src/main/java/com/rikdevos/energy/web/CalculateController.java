@@ -27,7 +27,7 @@ public class CalculateController {
             @RequestPart("battery") BatterySpecDto battery,
             @RequestPart("tariffs") TariffsDto tariffs) throws IOException {
         try (var in = csv.getInputStream()) {
-            return calculationService.calculate(in, battery.toBattery(), tariffs.toTarrifs());
+            return calculationService.calculate(in, battery.toBattery(), tariffs.toTariffs());
         }
     }
 }
