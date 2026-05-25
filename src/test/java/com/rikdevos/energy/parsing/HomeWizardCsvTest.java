@@ -31,9 +31,9 @@ class HomeWizardCsvTest {
 
         assertThat(readings).hasSize(2);
         assertThat(parsed.skippedRows()).isZero();
-        assertThat(readings.get(0).time()).isEqualTo(LocalDateTime.of(2024, 1, 1, 0, 0));
-        assertThat(readings.get(0).totalImport()).isEqualTo(15.0); // 10 + 5
-        assertThat(readings.get(0).totalExport()).isEqualTo(3.0);  // 2 + 1
+        assertThat(readings.getFirst().time()).isEqualTo(LocalDateTime.of(2024, 1, 1, 0, 0));
+        assertThat(readings.getFirst().totalImport()).isEqualTo(15.0); // 10 + 5
+        assertThat(readings.getFirst().totalExport()).isEqualTo(3.0);  // 2 + 1
         assertThat(readings.get(1).totalImport()).isEqualTo(16.5);
         assertThat(readings.get(1).totalExport()).isEqualTo(3.5);
     }
@@ -42,9 +42,9 @@ class HomeWizardCsvTest {
     void skipsBlankLines() throws Exception {
         String csv = """
                 time,Import T1 kWh,Import T2 kWh,Export T1 kWh,Export T2 kWh,L1 max W,L2 max W,L3 max W
-
+                
                 2024-01-01 00:00,10.0,5.0,2.0,1.0,100,100,100
-
+                
                 2024-01-01 00:15,11.0,5.5,2.25,1.25,120,120,120
                 """;
 
